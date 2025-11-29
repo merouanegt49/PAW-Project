@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SATIBOT</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f5f6fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .chat-container {
+      width: 400px;
+      height: 600px;
+      background: #fff;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #5a4ff7, #8a6cfb);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      color: white;
+    }
+
+    .logo {
+      background: white;
+      color: #5a4ff7;
+      font-weight: bold;
+      font-size: 22px;
+      border-radius: 50%;
+      width: 35px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lang-buttons button {
+      background: transparent;
+      color: white;
+      border: 1px solid white;
+      border-radius: 8px;
+      margin: 0 2px;
+      cursor: pointer;
+      padding: 5px 8px;
+    }
+
+    .lang-buttons button.active {
+      background: white;
+      color: #5a4ff7;
+      font-weight: bold;
+    }
+
+    .close-btn {
+      background: white;
+      color: #5a4ff7;
+      border: none;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .chat-messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px;
+      border-radius: 12px;
+      margin: 5px 0;
+    }
+
+    .user {
+      align-self: flex-end;
+      background: #e0e0e0;
+      color: black;
+    }
+
+    .bot {
+      align-self: flex-start;
+      background: #5a4ff7;
+      color: white;
+    }
+
+    .chat-input {
+      display: flex;
+      align-items: center;
+      border-top: 1px solid #ddd;
+      padding: 10px;
+    }
+
+    .chat-input input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 10px;
+      border-radius: 20px;
+      background: #f1f1f1;
+      margin: 0 10px;
+    }
+
+    .chat-input button {
+      background: #5a4ff7;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header">
+    <div class="logo">S</div>
+    <div class="lang-buttons">
+      <button id="en" class="active">EN</button>
+      <button id="fr">FR</button>
+      <button id="ar">AR</button>
+    </div>
+    <button class="close-btn">X</button>
+  </div>
+
+  <div class="chat-messages" id="chat-messages"></div>
+
+  <div class="chat-input">
+    <span class="emoji">😊</span>
+    <input type="text" id="userInput" placeholder="Type your question.." />
+    <button id="sendButton">➤</button>
+  </div>
+</div>
+
+<script>
+  let currentLang = "en";
+
+  // 🔹 Handle language button clicks
+  const langButtons = document.querySelectorAll(".lang-buttons button");
+  langButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentLang = btn.id; // save selected language
+
+      // highlight active button
+      langButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  // 🔹 Send message when button clicked
+  document.getElementById("sendButton").addEventListener("click", sendMessage);
+
+  function sendMessage() {
+    const input = document.getElementById("userInput");
+    const message = input.value.trim();
+    if (!message) return;
+
+    addMessage("user", message);
+    input.value = "";
+
+    // bot reply depending on selected language
+    setTimeout(() => {
+      if (currentLang === "en") addMessage("bot", "This is a test reply! 🤖");
+      if (currentLang === "fr") addMessage("bot", "Ceci est une réponse de test! 🤖");
+      if (currentLang === "ar") addMessage("bot", "هذه رد تجريبي! 🤖");
+    }, 600);
+  }
+
+  function addMessage(sender, text) {
+    const messagesDiv = document.getElementById("chat-messages");
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("message", sender);
+    messageDiv.innerText = text;
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+</script>
+
+</body>
+</html>

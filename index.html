@@ -1,0 +1,554 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Attendance — Tutorial 2 (AWP)</title>
+
+<!-- jQuery CDN (needed for Exercises 5 & 6) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-... (trusted CDN)" crossorigin="anonymous"></script>
+
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --muted:#94a3b8;
+    --accent:#5b8cff;
+    --green:#1ec07a;
+    --yellow:#f6c94c;
+    --red:#ff6b6b;
+    --surface:#0f1724;
+    --glass: rgba(255,255,255,0.03);
+    --radius:12px;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  body {
+    background: linear-gradient(180deg, #071026 0%, #071326 100%);
+    color: #e6eef8;
+    margin: 20px;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .container { max-width:1100px; margin: 0 auto; padding:20px; }
+
+  header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px; }
+  header h1 { font-size:20px; margin:0; letter-spacing:0.2px; }
+  header p { color:var(--muted); margin:0; font-size:13px; }
+
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: var(--radius);
+    padding:14px;
+    box-shadow: 0 6px 20px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .search-box { padding:10px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit; }
+  .btn { background: linear-gradient(180deg,var(--glass), rgba(255,255,255,0.01)); color: #eaf2ff; border:1px solid rgba(255,255,255,0.04); padding:8px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
+  .btn.secondary { background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--muted); font-weight:500; }
+
+  table { width:100%; border-collapse:collapse; margin-top:10px; overflow:auto; display:block; border-radius:10px; }
+  thead th { background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); color:#cfe2ff; position:sticky; top:0; z-index:2; font-size:13px; padding:10px; border-bottom:1px solid rgba(255,255,255,0.04); text-align:center; }
+  tbody td { padding:10px; border-bottom:1px dashed rgba(255,255,255,0.02); text-align:center; font-size:14px; color:#e6eef8; }
+  tbody tr td:first-child, tbody tr td:nth-child(2) { text-align:left; padding-left:16px; font-weight:600; }
+
+  /* status rows */
+  .row-green { background: linear-gradient(90deg, rgba(30,192,122,0.06), transparent); }
+  .row-yellow { background: linear-gradient(90deg, rgba(246,201,76,0.06), transparent); }
+  .row-red { background: linear-gradient(90deg, rgba(255,107,107,0.06), transparent); }
+
+  .absences, .participCount, .message { font-weight:600; }
+
+  form .field { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
+  form label { width:110px; color:var(--muted); font-size:13px; display:block; }
+  form input { background:transparent; border:1px solid rgba(255,255,255,0.04); padding:8px 10px; border-radius:8px; color:inherit; width:100%; }
+  .error { color:#ff8b8b; font-size:12px; margin-top:4px; min-height:18px; }
+  .confirm { color:var(--green); font-weight:600; margin-left:6px; }
+
+  /* report area */
+  #reportArea { margin-top:12px; display:none; }
+  .report-row { display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:14px; color:var(--muted); }
+  .barWrap { background:rgba(255,255,255,0.03); border-radius:10px; padding:8px; width:100%; max-width:640px; }
+  .bar { height:24px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#02122b; transition: width .6s ease; background:var(--accent); width:0%; }
+
+  .legend { font-size:12px; color:var(--muted); margin-top:8px; }
+
+  /* small UI niceties */
+  .row-hover { outline: 2px solid rgba(91,140,255,0.18); outline-offset:-6px; transition: outline-color .18s, background .18s; }
+  .topActions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+  @media (max-width:820px){
+    thead th, tbody td { font-size:12px; padding:8px; }
+    header { flex-direction:column; align-items:flex-start; gap:6px; }
+  }
+
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        
+        
+      </div>
+      <div style="text-align:right">
+        <div id="lastAction" class="small" aria-live="polite" style="color:var(--muted); font-size:13px;"></div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="topActions" style="justify-content:space-between; width:100%; align-items:center; margin-bottom:10px;">
+        <div class="controls">
+          <input id="searchinput" class="search-box" placeholder="Search by name..." aria-label="Search students">
+          <button id="sortAbsences" class="btn secondary">Sort by Absences ↑</button>
+          <button id="sortparticipation" class="btn secondary">Sort by Participation ↓</button>
+          <button id="showReportBtn" class="btn">Show Report</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="highlightExcellent" class="btn">Highlight Excellent</button>
+          <button id="resetColors" class="btn secondary">Reset Colors</button>
+        </div>
+      </div>
+
+      <!-- Attendance table -->
+      <table id="attendanceTable" aria-describedby="tableDesc" role="table">
+        <caption id="tableDesc" style="caption-side:top; text-align:left; font-weight:700; color:var(--muted); margin-bottom:8px;">
+         
+        </caption>
+        <thead>
+          <tr>
+            <th rowspan="2">Last Name</th>
+            <th rowspan="2">First Name</th>
+            <th colspan="2">S1</th>
+            <th colspan="2">S2</th>
+            <th colspan="2">S3</th>
+            <th colspan="2">S4</th>
+            <th colspan="2">S5</th>
+            <th colspan="2">S6</th>
+            <th rowspan="2">Absences</th>
+            <th rowspan="2">Participation</th>
+            <th rowspan="2">Message</th>
+          </tr>
+          <tr>
+            <th>P</th><th>Pa</th>
+            <th>P</th><th>Pa</th>
+            <th>P</th><th>Pa</th>
+            <th>P</th><th>Pa</th>
+            <th>P</th><th>Pa</th>
+            <th>P</th><th>Pa</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Example rows -->
+          <tr>
+            <td>A.</td><td>Sara</td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td class="absences">0</td>
+            <td class="participCount">0</td>
+            <td class="message"></td>
+          </tr>
+
+          <tr>
+            <td>Yacine</td><td>Ali</td>
+            <td><input type="checkbox" checked class="present"></td><td><input type="checkbox" checked class="participated"></td>
+            <td><input type="checkbox" checked class="present"></td><td><input type="checkbox" checked class="participated"></td>
+            <td><input type="checkbox" checked class="present"></td><td><input type="checkbox" checked class="participated"></td>
+            <td><input type="checkbox" checked class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td class="absences">0</td>
+            <td class="participCount">0</td>
+            <td class="message"></td>
+          </tr>
+
+          <tr>
+            <td>Houcine</td><td>Rania</td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" checked class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" checked class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td><input type="checkbox" class="present"></td><td><input type="checkbox" class="participated"></td>
+            <td class="absences">0</td>
+            <td class="participCount">0</td>
+            <td class="message"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Small status -->
+      <div style="margin-top:8px; color:var(--muted); font-size:13px;">
+        Tip: Click a row to view the student's full name and absences. Hover to highlight. Use the buttons above for sorting and report.
+      </div>
+    </div>
+
+    <!-- Add Student Form -->
+    <section style="margin-top:14px;" class="card">
+      <h3 style="margin-top:0; margin-bottom:10px;">Add Student</h3>
+      <form id="addStudentForm" novalidate>
+        <div class="field">
+          <label for="studentId">Student ID</label>
+          <div style="flex:1;">
+            <input id="studentId" type="text" name="studentId" aria-describedby="errId" />
+            <div id="errId" class="error" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="lastName">Last Name</label>
+          <div style="flex:1;">
+            <input id="lastName" type="text" name="lastName" aria-describedby="errLast" />
+            <div id="errLast" class="error" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="firstName">First Name</label>
+          <div style="flex:1;">
+            <input id="firstName" type="text" name="firstName" aria-describedby="errFirst" />
+            <div id="errFirst" class="error" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <div style="flex:1;">
+            <input id="email" type="email" name="email" aria-describedby="errEmail" />
+            <div id="errEmail" class="error" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; align-items:center; margin-top:8px;">
+          <button type="submit" class="btn">Add Student</button>
+          <span id="addConfirm" class="confirm" aria-live="assertive"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- Report area -->
+    <section id="reportArea" class="card" style="display:none;">
+      <h4 style="margin-top:0; margin-bottom:8px;">Report</h4>
+
+      <div class="report-row"><strong>Total students:</strong><div id="totalStudents" style="margin-left:auto; color:var(--muted)">0</div></div>
+      <div class="report-row"><strong>Total present marks:</strong><div id="totalPresentMarks" style="margin-left:auto; color:var(--muted)">0</div></div>
+      <div class="report-row"><strong>Total participation marks:</strong><div id="totalParticipMarks" style="margin-left:auto; color:var(--muted)">0</div></div>
+
+      <div style="margin-top:12px;">
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div style="flex:1;">
+            <div class="small" style="color:var(--muted); margin-bottom:6px;">Present marks (of possible)</div>
+            <div class="barWrap"><div id="presentBar" class="bar">0</div></div>
+          </div>
+          <div style="flex:1;">
+            <div class="small" style="color:var(--muted); margin-bottom:6px;">Participation marks (of possible)</div>
+            <div class="barWrap"><div id="participBar" class="bar">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">Bars are proportional to the maximum possible marks (students × sessions).</div>
+    </section>
+
+  </div>
+
+<script>
+(function () {
+  // Constants
+  const SESSIONS = 6;
+  const table = document.getElementById('attendanceTable');
+  const tbody = table.querySelector('tbody');
+  const form = document.getElementById('addStudentForm');
+  const errId = document.getElementById('errId');
+  const errLast = document.getElementById('errLast');
+  const errFirst = document.getElementById('errFirst');
+  const errEmail = document.getElementById('errEmail');
+  const addConfirm = document.getElementById('addConfirm');
+  const lastAction = document.getElementById('lastAction');
+
+  const showReportBtn = document.getElementById('showReportBtn');
+  const reportArea = document.getElementById('reportArea');
+  const totalStudentsElem = document.getElementById('totalStudents');
+  const totalPresentMarksElem = document.getElementById('totalPresentMarks');
+  const totalParticipMarksElem = document.getElementById('totalParticipMarks');
+  const presentBar = document.getElementById('presentBar');
+  const participBar = document.getElementById('participBar');
+
+  // Utility: update a single row (absences, participation, message, color)
+  function updateRow(row) {
+    const presentBoxes = Array.from(row.querySelectorAll('input.present'));
+    const partBoxes = Array.from(row.querySelectorAll('input.participated'));
+
+    // Count absences = sessions where present checkbox is NOT checked
+    let absences = 0;
+    for (let i = 0; i < SESSIONS; i++) {
+      const p = presentBoxes[i];
+      if (!p) continue;
+      if (!p.checked) absences++;
+    }
+
+    const participCount = partBoxes.reduce((acc, cb) => acc + (cb.checked ? 1 : 0), 0);
+
+    const absCell = row.querySelector('.absences');
+    const partCell = row.querySelector('.participCount');
+    const msgCell = row.querySelector('.message');
+
+    if (absCell) absCell.textContent = absences;
+    if (partCell) partCell.textContent = participCount;
+
+    // Color rows
+    row.classList.remove('row-green', 'row-yellow', 'row-red');
+    if (absences < 3) row.classList.add('row-green');
+    else if (absences <= 4) row.classList.add('row-yellow');
+    else row.classList.add('row-red');
+
+    // Message rules
+    let message = '';
+    if (absences >= 5) {
+      message = "Excluded - too many absences - You need to participate more";
+    } else if (absences >= 3) {
+      message = "Warning - attendance low - You need to participate more";
+    } else {
+      const maxPossible = SESSIONS;
+      if (participCount >= Math.ceil(maxPossible / 2)) {
+        message = "Good attendance – Excellent participation";
+      } else {
+        message = "Good attendance – Please try to participate more";
+      }
+    }
+    if (msgCell) msgCell.textContent = message;
+  }
+
+  // Update every row
+  function updateAllRows() {
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(updateRow);
+  }
+
+  // Add a row (used when adding student)
+  function makeCheckboxCell(className) {
+    const td = document.createElement('td');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = className;
+    td.appendChild(cb);
+    return td;
+  }
+
+  function addStudentRow(last, first) {
+    const tr = document.createElement('tr');
+    const tdLast = document.createElement('td'); tdLast.textContent = last;
+    const tdFirst = document.createElement('td'); tdFirst.textContent = first;
+    tr.appendChild(tdLast); tr.appendChild(tdFirst);
+
+    for (let i = 0; i < SESSIONS; i++) {
+      tr.appendChild(makeCheckboxCell('present'));
+      tr.appendChild(makeCheckboxCell('participated'));
+    }
+
+    const absTd = document.createElement('td'); absTd.className = 'absences'; absTd.textContent = '0';
+    const partTd = document.createElement('td'); partTd.className = 'participCount'; partTd.textContent = '0';
+    const msgTd = document.createElement('td'); msgTd.className = 'message'; msgTd.textContent = '';
+
+    tr.appendChild(absTd);
+    tr.appendChild(partTd);
+    tr.appendChild(msgTd);
+
+    tbody.appendChild(tr);
+
+    // Attach event listeners to the new checkboxes (delegation is used later, but safe to update)
+    updateRow(tr);
+    return tr;
+  }
+
+  // Form validation
+  function clearErrors() {
+    errId.textContent = '';
+    errLast.textContent = '';
+    errFirst.textContent = '';
+    errEmail.textContent = '';
+    addConfirm.textContent = '';
+  }
+
+  function validateForm(id, last, first, email) {
+    clearErrors();
+    let ok = true;
+    if (!id.trim()) { errId.textContent = 'Student ID is required.'; ok = false; }
+    else if (!/^\d+$/.test(id.trim())) { errId.textContent = 'Student ID must contain only numbers.'; ok = false; }
+
+    if (!last.trim()) { errLast.textContent = 'Last name is required.'; ok = false; }
+    else if (!/^[A-Za-zÀ-ÿ'\- ]+$/.test(last.trim())) { errLast.textContent = 'Last name must contain only letters.'; ok = false; }
+
+    if (!first.trim()) { errFirst.textContent = 'First name is required.'; ok = false; }
+    else if (!/^[A-Za-zÀ-ÿ'\- ]+$/.test(first.trim())) { errFirst.textContent = 'First name must contain only letters.'; ok = false; }
+
+    if (!email.trim()) { errEmail.textContent = 'Email is required.'; ok = false; }
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { errEmail.textContent = 'Email is not valid.'; ok = false; }
+
+    return ok;
+  }
+
+  // Delegated change handler: when any checkbox changes, update its row
+  tbody.addEventListener('change', function (e) {
+    const el = e.target;
+    if (el.tagName === 'INPUT' && (el.classList.contains('present') || el.classList.contains('participated'))) {
+      const row = el.closest('tr');
+      updateRow(row);
+    }
+  });
+
+  // Add student form submit
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    const id = document.getElementById('studentId').value;
+    const last = document.getElementById('lastName').value;
+    const first = document.getElementById('firstName').value;
+    const email = document.getElementById('email').value;
+
+    if (!validateForm(id, last, first, email)) {
+      addConfirm.textContent = '';
+      return;
+    }
+
+    const newRow = addStudentRow(last.trim(), first.trim());
+    addConfirm.textContent = 'Student added successfully.';
+    lastAction.textContent = `Added: ${first.trim()} ${last.trim()}`;
+
+    // small visual feedback for new row
+    newRow.style.transition = 'background .6s';
+    newRow.style.background = 'linear-gradient(90deg, rgba(91,140,255,0.08), transparent)';
+    setTimeout(() => newRow.style.background = '', 1200);
+
+    form.reset();
+    setTimeout(() => addConfirm.textContent = '', 3000);
+  });
+
+  // Build report (Exercise 4)
+  function buildReport() {
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const totalStudents = rows.length;
+    // total possible marks = students × sessions
+    const totalPossible = totalStudents * SESSIONS;
+
+    let presentMarks = 0;
+    let participMarks = 0;
+
+    rows.forEach(row => {
+      presentMarks += Array.from(row.querySelectorAll('input.present')).reduce((a, cb) => a + (cb.checked ? 1 : 0), 0);
+      participMarks += Array.from(row.querySelectorAll('input.participated')).reduce((a, cb) => a + (cb.checked ? 1 : 0), 0);
+    });
+
+    totalStudentsElem.textContent = totalStudents;
+    totalPresentMarksElem.textContent = presentMarks;
+    totalParticipMarksElem.textContent = participMarks;
+
+    const pPct = totalPossible ? Math.round((presentMarks / totalPossible) * 100) : 0;
+    const parPct = totalPossible ? Math.round((participMarks / totalPossible) * 100) : 0;
+
+    presentBar.style.width = pPct + '%';
+    presentBar.textContent = `${presentMarks} (${pPct}%)`;
+
+    participBar.style.width = parPct + '%';
+    participBar.textContent = `${participMarks} (${parPct}%)`;
+
+    reportArea.style.display = 'block';
+    reportArea.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  showReportBtn.addEventListener('click', function () {
+    updateAllRows(); // ensure counts are up-to-date
+    buildReport();
+  });
+
+  // Search (Exercise 7 from earlier file) — simple case-insensitive search on whole row
+  document.getElementById('searchinput').addEventListener('input', function () {
+    const v = this.value.toLowerCase().trim();
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
+      const rowText = tr.textContent.toLowerCase();
+      tr.style.display = rowText.includes(v) ? '' : 'none';
+    });
+  });
+
+  // Sort by absences ascending
+  document.getElementById('sortAbsences').addEventListener('click', function () {
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const absA = parseInt(a.querySelector('.absences').textContent) || 0;
+      const absB = parseInt(b.querySelector('.absences').textContent) || 0;
+      return absA - absB;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    this.textContent = this.textContent.includes('↑') ? 'Sort by Absences ↓' : 'Sort by Absences ↑';
+  });
+
+  // Sort by participation descending
+  document.getElementById('sortparticipation').addEventListener('click', function () {
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const pA = parseInt(a.querySelector('.participCount').textContent) || 0;
+      const pB = parseInt(b.querySelector('.participCount').textContent) || 0;
+      return pB - pA;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+  });
+
+  // jQuery behaviors (Exercises 5 & 6)
+  $(function () {
+    // Hover highlight
+    $("#attendanceTable tbody").on("mouseenter", "tr", function () {
+      $(this).addClass('row-hover');
+    }).on("mouseleave", "tr", function () {
+      $(this).removeClass('row-hover');
+    });
+
+    // Click a row -> show student's full name and absences
+    $("#attendanceTable tbody").on("click", "tr", function () {
+      const last = $(this).find('td').eq(0).text().trim();
+      const first = $(this).find('td').eq(1).text().trim();
+      const abs = $(this).find('.absences').text().trim();
+      // Simple modal: browser alert (requirement asked message box)
+      alert(`Student: ${first} ${last}\nAbsences: ${abs}`);
+    });
+
+    // Highlight excellent students (<3 absences)
+    $("#highlightExcellent").on("click", function () {
+      $("#attendanceTable tbody tr").each(function () {
+        const abs = parseInt($(this).find(".absences").text()) || 0;
+        if (abs < 3) {
+          $(this)
+            .stop(true, true)
+            .animate({opacity: 0.25}, 200)
+            .animate({opacity: 1}, 300)
+            .css("background-color", "rgba(30,192,122,0.08)");
+        }
+      });
+    });
+
+    // Reset colors (restore class-based coloring)
+    $("#resetColors").on("click", function () {
+      $("#attendanceTable tbody tr").each(function () {
+        $(this).stop(true, true).css("background-color", "");
+        const abs = parseInt($(this).find(".absences").text()) || 0;
+        $(this).removeClass("row-green row-yellow row-red");
+        if (abs < 3) $(this).addClass("row-green");
+        else if (abs <= 4) $(this).addClass("row-yellow");
+        else $(this).addClass("row-red");
+      });
+    });
+  });
+
+  // Initial calculation on page load
+  updateAllRows();
+
+})();
+</script>
+
+</body>
+</html>
